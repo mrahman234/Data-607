@@ -11,6 +11,18 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+Load the libraries to use:
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(magrittr)
+```
+
+
+### Dataset 1
+
 I chose to use my own dataset for this assignment.
 
 Let's simulate the data:
@@ -56,14 +68,6 @@ blood_pressure_and_demographics
 ```
 
 Time to tidy and transform the data.
-
-Load the libraries to use:
-
-```{r message=FALSE, warning=FALSE}
-library(dplyr)
-library(tidyr)
-```
-
 
 First, reshape the dataset into long format:
 
@@ -153,14 +157,6 @@ blood_pressure_and_demographics
 
 Time to tidy and transform the data.
 
-Load the libraries to use:
-
-```{r message=FALSE, warning=FALSE}
-library(dplyr)
-library(tidyr)
-```
-
-
 First, reshape the dataset into long format:
 
 ```{r}
@@ -204,3 +200,149 @@ df_clean
 ```
 
 The final output is a cleaned and transformed dataset that is ready for downstream analysis.
+
+### Dataset 2
+
+Read the data into R:
+
+```{r}
+dfSchool <- read.csv(file = "school_diversity.csv")
+
+str(dfSchool)
+```
+
+Cleaning and transforming data
+
+```{r message = FALSE, warning=FALSE}
+# we are interested in getting the counts of the students' race
+dfSchool2 <- dfSchool %>%
+  mutate_all(~replace(., is.na(.), 0)) %>%
+  filter(Total > 100) %>%
+  mutate(Asian_Pop = Asian / 100 * Total,
+         Black_Pop = Black / 100 * Total,
+         Hispanic_Pop = Hispanic / 100 * Total,
+         White_Pop = White / 100 * Total,
+         Multi_Pop = Multi / 100 * Total,
+         ) %>%
+  group_by(LEA_NAME, ST) %>%
+  summarize(Asian = mean(Asian_Pop),
+            Black = mean(Black_Pop),
+            Hispanic = mean(Hispanic_Pop),
+            White = mean(White_Pop),
+            Multi = mean(Multi_Pop)
+            )
+
+head(dfSchool2)
+```
+
+Comparing race ration in schools
+
+```{r message = FALSE, warning=FALSE}
+dfSchool4 <- dfSchool %>%
+  mutate_all(~replace(., is.na(.), 0)) %>%
+  filter(Total > 100) %>%
+  mutate(Asian = Asian / 100,
+         Black = Black / 100,
+         Hispanic = Hispanic / 100,
+         White = White / 100,
+         Multi = Multi / 100,
+         ) %>%
+  group_by(ST) %>%
+  summarize(Asian = mean(Asian),
+            Black = mean(Black),
+            Hispanic = mean(Hispanic),
+            White = mean(White),
+            Multi = mean(Multi)) %>%
+  pivot_longer(!ST, names_to = 'Ethnicity', values_to = 'Ratio')
+
+ggplot(data = dfSchool4, aes(x = Ethnicity, y = Ratio, fill = Ethnicity)) +
+  geom_boxplot() +
+  labs(title = 'Ethnicity Ratio Distribution in Schools')
+```
+
+While the other racial ratios are more equal, we can observe that the White student ratio has the largest overall spread by far.
+
+### DataSet 3
+
+Read the data into R:
+
+```{r}
+religion <- read.csv(file = "income_and_religion.csv")
+
+religion
+```
+
+Tidying the Data:
+
+To tidy the data, I removed unnecessary variables, changed the names, and then changed the wide data set into a longer data set by grouping the income levels as the `income` variable and assigned the values to `frequency`. Then I changed the `income` into a factor and ordered the levels.
+
+```{r}
+religion <- religion %>%
+  select(-X) %>%
+  set_colnames(c("religion", "<$10k","$10-20k", "$20-30k", "$30-40k", "$40-50k", "$50-75k")) %>%
+  pivot_longer(2:7, names_to = "income", values_to = "frequency")
+
+# factoring the income variable
+religion$income <- religion$income %>%
+  as.factor() %>%
+  relevel("<$10k")
+
+head(religion)
+```
+
+Calculations and Graphs:
+
+Based on their religion, I was able to determine the percentage of persons in each economic bracket. After that, I created a bar graph to display the percentages of revenue for each religious organization. I also discovered the average for every income bracket, which might be biased because some had higher frequencies than others, and we're not sure if it makes sense for the overall population.For each faith, I also discovered the largest wealth category. Finally, I made an effort to identify the income bracket that corresponds to each faith group's median value. I determined the cumulative sum of the income levels and divided the total number of members of each religious group by two to find the median. Next, I found the income group that contains the median value by comparing it to its cumulative sum.
+
+```{r}
+# finding the proportion of each income for each religion
+religion <- religion %>%
+  group_by(religion) %>%
+  mutate(count = sum(frequency)) %>%
+  group_by(religion, income) %>%
+  mutate(proportion = frequency / count,
+         label = round(proportion * 100, 2))
+
+# bar graph of the proportions
+ggplot(religion) + 
+  geom_bar(aes(x = religion, y = proportion, fill = income), stat = "identity", 
+           position = position_fill(reverse = TRUE)) +
+  geom_text(aes(x = religion, y = proportion, label = label, group = income),
+            position = position_stack(vjust = .5, reverse = TRUE), size = 3) +
+  coord_flip() +
+  ggtitle("Distribution of Income Levels per Religions")
+
+# finding the average of each income group
+religion %>%
+  group_by(income) %>%
+  summarise(average = mean(frequency)) %>%
+  arrange(desc(average))
+
+# finding the biggest income group for each religion
+religion %>%
+  group_by(religion) %>%
+  select(-label, - count) %>%
+  mutate(max = max(proportion)) %>%
+  filter(proportion == max) %>%
+  select(-max) %>%
+  arrange(desc(proportion))
+
+# finding the median value
+religion %>%
+  group_by(religion) %>%
+  select(-label, - proportion) %>%
+  mutate(median = count / 2,
+         sum = cumsum(frequency)) %>%
+  select(-count, -frequency) %>%
+  filter(sum >= median) %>%
+  mutate(minsum = min(sum)) %>%
+  filter(minsum == sum) %>%
+  select(-minsum) %>%
+  arrange(desc(income))
+```
+
+Conclusion
+
+The largest income category for all faith groups, according to the graph and chart, is between \$50 and \$75k, with the exception of historically Black Protestants, who are primarily in the \$10–20k range. Interestingly, the percentage of Hindu and Jewish individuals earning between \$50,000 and \$75,000 is over 40%, whereas the percentage for Evangelical Protestant, Catholic, and Buddhist groupings is only under 25%. Additionally, it is clear that the group with the highest combined income is \$50–75k, followed by \$20–30k. 
+
+Given that income is not regularly distributed, the median should be examined rather than the average. For every religion group, I was also able to determine the median income group. In order to accomplish this, I had to first get the median frequency value for each group before calculating the cumulative total of the frequencies for each income bracket. When the median value exceeded the cumulative sum, it indicated that the median value would belong to that particular income category. With the exception of Agnostic, Hindu, and Jewish people, who fell into the \$40–50k income range for their median group, and Historically Black Protestants, who fell into the \$20–30k income range for their median group, the majority of the religious group fell into the \$30–45k income range.
