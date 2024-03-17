@@ -1,0 +1,160 @@
+---
+title: "Project 3"
+author: "Mohammed Rahman"
+date: "2024-03-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE, warning=FALSE, echo = FALSE}
+#Loading libraries
+library(DBI)
+library(RSQLite)
+library(RMySQL)
+library(dplyr)
+library(tidyverse)
+library(magrittr)
+library(reshape2)
+library(knitr)
+library(wordcloud)
+library(RColorBrewer)
+```
+
+## Project Description
+
+The goal of this project is to find most valuable data science skills. I collected datasets from kaggle.com and uploaded it into my github and to MySql database. I will load the dataset into MySQL and find the top 15 Data Scientist Skill, Data Analysts and Data engineer. I will also try to find data science skills across different sectors.
+
+## Project Member
+
+- Mohammed Rahman
+
+## Data Source
+
+The data I collected from kaggle.com and collected into my github account.
+
+https://github.com/mrahman234/Data-607/tree/main/Project%203/Dataset
+
+## Tools
+
+I will use R Studio for my collaboration and code development. This allows us to view and share code within the project. I am using R Markdown within RStudio Cloud for project documentation to publish through RPubs. To create the ER Diagram, I will use Lucid App website. The source file of my project and datasets will be uploaded to my github account.
+
+## ER Diagram
+
+ER Diagram:
+
+I tried to normalize the ER Diagram a little bit. This normalization reduces data redundancy by ensuring that each data item is stored only once. Also it ensures data consistency, as updates, deletions, and insertions only have to be performed in one place.
+
+```{r message = FALSE, warning=FALSE, echo = FALSE}
+library(imager)
+knitr::include_graphics("E:/CUNY Courses/Semester 3/Data 607/Week 8/Project 3/ER_diagram.png")
+```
+
+## Connecting to Database
+
+```{r connecting-mysql}
+mydb = dbConnect(MySQL(), user='mohammed.rahman76', password='mohammed.rahman76', dbname='mohammed.rahman76', port=3306, host='cunydata607sql.mysql.database.azure.com')
+
+summary(mydb)
+
+#showing tables list
+dbListTables(mydb)
+```
+
+## Data Cleaning and Analysis
+
+Loading database to variable
+
+```{r dataload}
+indeed <- dbReadTable(mydb, "job_dataset")
+```
+
+### Finding Overall Skills
+
+After the database was loaded into R from MySQL, the Skill column tab required some organization. The dataset provides data of job list from Indeed. From there, I removed all strings, trimmed, and split the string into pieces with commas. By doing this, I will eventually use the unlist function to turn the list into a vector. After creating a table to count the frequencies, I proceeded to trim the function once more and set it as a data frame. I wanted to put the frequency of skills in descending order, therefore I mutated new column names. To see the ratios between the frequency and the total of the frequencies for each talent, I lastly mutated another new column.
+
+Now, I'm creating a graph of top 15 skills for Data Scientists. 
+
+```{r top-15}
+indeed_skills <- indeed$Skill %>% 
+  str_remove_all("\\[|\\]|\\'") %>%
+  str_trim() %>%
+  str_split(",") %>%
+  unlist() %>%
+  str_trim() %>%
+  table() %>%
+  as.data.frame() %>%
+  set_colnames(c("skill", "frequency")) %>%
+  arrange(desc(frequency)) %>%
+  mutate(proportion = frequency / sum(frequency))
+
+#graph of top 15 skills overall
+indeed_skills %>%
+  slice(1:15) %>%
+ggplot(., aes(x = reorder(skill, frequency), y = frequency)) +
+  geom_bar(stat = "identity", fill = "#739ade") +
+  coord_flip() +
+  ggtitle("Top 15 Skills for in the dataset") +
+  xlab("skill")
+```
+
+### Distributing Job Type
+
+Firstly, I am subsetting the dataframe. Next, I used regular expressions to sanitize the talents column and removed []. After that, I divided the string and reduced the data. Then, I cleaned the job type columns and unnested the skills. After that, I determined the frequencies and proportions by eliminating the white spaces. Finding the top valuable skills only for Data Scientists. The findings were then plotted using ggplot2.
+
+```{r job-type}
+#subsetting data
+job_vs_skill <- indeed %>% 
+  select(Job_Title, Job_Type, Skill) 
+
+#cleaning skills column
+job_vs_skill$Skill <- job_vs_skill$Skill %>%
+  str_remove_all("\\[|\\]|\\'") %>%
+  str_trim() %>%
+  str_split(",") 
+
+#cleaning job type columns
+job_vs_skill$Job_Type <- job_vs_skill$Job_Type %>%
+  str_replace_all("_", " ")
+
+#unnesting   
+job_vs_skill <- job_vs_skill %>% 
+  unnest(Skill) 
+
+#removing white space
+job_vs_skill$Skill <- trimws(job_vs_skill$Skill, which = c("both"))
+
+#finding frequencies and proportions
+job_vs_skill <- job_vs_skill %>%
+  group_by(Job_Type, Skill) %>%
+  summarise(freq = n()) %>%
+  mutate(proportion = freq/ sum(freq),
+         label = round(proportion * 100, 2))
+
+#top 10 skills by job type
+job_vs_skill2 <- job_vs_skill %>%
+  group_by(Job_Type) %>%
+  top_n(10, proportion) %>%
+  ungroup() %>%
+  arrange(Job_Type, desc(proportion))
+```
+
+#### All skills for data Scientists
+
+```{r top-skills}
+job_vs_skill %>%
+  filter(Job_Type == "data scientist") %>%
+
+ggplot(aes(x = reorder(Skill, freq), y = freq)) +
+  geom_bar(stat = "identity", fill = "#4e58f1") +
+  coord_flip() +
+  ggtitle("Top 15 Most Valued Skills for Data Scientists") +
+  xlab("skill") +
+  ylab("frequency")
+```
+
+## Conclusion
+
+Statistical Software, Machine Learning, R, Python, and Statistical Software top the pack, while AI and ArcGIs rank last among the most valued talents for data scientists.
