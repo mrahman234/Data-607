@@ -157,4 +157,4 @@ ggplot(aes(x = reorder(Skill, freq), y = freq)) +
 
 ## Conclusion
 
-Statistical Software, Machine Learning, R, Python, and Statistical Software top the pack, while AI and ArcGIs rank last among the most valued talents for data scientists.
+Machine Learning, R, Python, and Statistical Software top the pack, while AI and ArcGIs rank last among the most valued talents for data scientists.
