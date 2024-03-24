@@ -1,0 +1,56 @@
+---
+title: "Web APIs"
+author: "Mohammed Rahman"
+date: "2024-03-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE, warning=FALSE, echo = FALSE}
+#Loading libraries
+library(dplyr)
+library(tidyverse)
+library(knitr)
+library(httr)
+library(jsonlite)
+```
+
+### Introduction:
+
+I searched on the NY Times API website and I signed up into the website. I found the Books APIs and I chose the “Book Sellers History”. I retrieved info for the history to see the last few best sellers.
+
+```{r retrieve-data}
+
+ex<-GET("https://api.nytimes.com/svc/books/v3/lists/best-sellers/history.json?api-key=mP5gHH5A5oHbVq6PHAd2pAdv0BlS6s12")
+
+
+cat("The status returned is:", ex$status_code)
+```
+
+### Converting into JSON
+
+```{r data-json}
+data <- fromJSON(rawToChar(ex$content))
+names(data)
+```
+
+### Showing the data
+
+```{r construct-result}
+# Constructing dataframe
+df<-data.frame(data$results, stringsAsFactors = FALSE)
+
+# Showing result
+df %>% 
+select(title, description, author, publisher, price, isbns) %>%
+  rename("Title" = title, "Description" = description,"Author" = author, "Publisher" = publisher, "Price" = price, "ISBN" = isbns) %>% 
+kable
+
+```
+
+### Conclusion
+
+Here, I chose "best sellers of book" data from New York APIs, and construct the data to read in the JSON into R. The data is transormed into R dataframe and the result is shown with data of Title, Description, Author, Publisher, Price, and ISBN.
