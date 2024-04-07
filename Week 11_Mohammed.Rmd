@@ -1,0 +1,72 @@
+---
+title: 'Week 11: Recommender Systems'
+author: "Mohammed Rahman"
+date: "2024-04-07"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction:
+
+Pandora is a leading music and podcast discovery platform, providing a highly-personalized listening experience to approximately 70 million users each month with its proprietary Music Genome Project® and Podcast Genome Project® technology - whether at home or on the go - through its mobile app, the web, and integration with more than 2,000 connected products. As the largest streaming music provider in the U.S., with an industry-leading digital audio advertising platform, Pandora connects listeners with the audio entertainment they love. Pandora is a subsidiary of Sirius XM Holdings Inc. (NASDAQ: SIRI). Together, Pandora and SiriusXM have created the world's largest audio entertainment company. This kind of democratic service, wherein users are in control of what they listen to, naturally requires a site that foregrounds the people involved in our global music culture.
+
+## Scenario Design Analysis
+
+### Organization's Perspective:
+
+The primary goal of Pandora is to maximize user engagement and subscription conversions by providing personalized music and podcast recommendations. Enhance ad targeting for free-tier users to increase ad revenue.
+
+### User's Perspective:
+
+The user's goal is to discover new music and podcasts that align with their tastes, create personalized stations, and enjoy a seamless listening experience.
+
+### Target Users:
+
+Pandora’s target users are the individuals who stream music through Wi-fi or cell network signal. Company offers an Offline Mode feature, that is available with Pandora Plus and Pandora Premium. The basic services are free with advertisements and/or limitations. 
+
+**Audience:** Active users were 68.8 million at the end of the third quarter of 2018, and total listener hours were 4.81 billion for the third quarter of 2018. Pandora Plus and Pandora Premium subscribers were approximately 6.8 million at the end of the third quarter of 2018, and our Premium Access offering continues to show momentum, as over 32 million listeners have used Premium Access since its launch to date.
+
+### Key Goals:
+
+- To discover music and podcasts that match their personal tastes.
+- To create and curate personalized stations effortlessly.
+- To explore new genres and artists without manual searching.
+
+### How to accomplish the goals:
+
+According to https://www.theserverside.com/, Pandora’s recommender uses about 70 different algorithms: 10 analyze content, 40 process collective intelligence, and then another 30 do personalized filtering. One of the reoccurring issues when it comes to recommender systems in music is that one’s taste in music changes quite frequently. The user may not like the same song this year, as opposed to last year.
+
+So the company could take some steps, such as:
+
+- Continually refining the music recommendation algorithm to cater to individual listener preferences.
+- Providing tools for users to fine-tune their stations and discover content beyond their usual preferences.
+- Enhancing user interface features for easier navigation and exploration of new content.
+
+## Reverse Engineering Insights:
+
+Pandora utilizes the Music Genome Project for its recommendation system, analyzing songs across hundreds of attributes (or "genes") to suggest tracks and create personalized stations. User interactions (thumbs up/down), listening habits, and station customizations further refine these recommendations. The system’s effectiveness relies on its ability to learn from both the intricate details of musicology and user behavior.
+
+## Recommendations:
+
+Although Pandora does a great job with the music selection, the following improvement can be made:
+
+**User-Controlled Discovery:** Introduce features allowing users to adjust the diversity of their recommendations, toggling between familiar favorites and unexplored territories.
+
+**Social Discovery Features:** Implement social listening features, enabling users to discover music through friends’ stations or shared playlists, fostering a community-driven discovery process.
+
+**Enhanced Feedback Mechanism:** Beyond the thumbs up/down, provide users with options to specify what aspect of the track they liked or disliked (e.g., vocals, tempo, mood), refining the recommendation engine further.
+
+**Mood and Activity-based Stations:** Expand the recommendation system to include contextual awareness, suggesting stations based on time of day, weather, or user activity.
+
+## Sources:
+
+Pandora - About Pandora. (n.d.). https://www.pandora.com/about
+
+Lawton, G. (2017, August 9). How Pandora built a better recommendation engine. TheServerSide.com. https://www.theserverside.com/feature/How-Pandora-built-a-better-recommendation-engine
+
+Pandora. (n.d.). https://www.designrush.com/best-designs/websites/pandora
