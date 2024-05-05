@@ -1,0 +1,220 @@
+---
+title: "Walmart Data Analysis"
+author: "Mohammed Rahman"
+date: "2024-04-20"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Introduction
+
+For the final project I'm using the Walmart sales data from Kaggle that is scraped from the web to perform data and statistical analysis.
+
+Data Source: [Walmart Dataset](https://www.kaggle.com/datasets/yasserh/walmart-dataset)
+
+The data contains sales of different Walmart stores from 2010-02-05 to 2012-11-01. It has columns with store number, week of sales, sales for the given store, holiday flag to denote whether the week is a holiday week, temperature on day of sale, cost of fuel in region, consumer price index and the prevalent unemployment rate. This data is used for data analysis and machine learning modelling tasks.
+
+### Loading Libraries
+
+```{r message = FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(reshape2) 
+library(zoo)
+library(xgboost)
+library(caret)
+library(knitr)
+```
+
+### Loading the data
+
+```{r load-data}
+data <- read.csv("Walmart.csv") # reads the csv data scraped from web.
+
+head(data)
+```
+
+### Data transformation that converts date column to datetime format.
+
+```{r convert-data}
+# Convert Date column to datetime format
+data$Date <- as.Date(data$Date, format = "%d-%m-%y")
+```
+
+```{r dist-data}
+# Data preprocessing that drops duplicates in the data
+data <- distinct(data)
+```
+
+```{r missing-values}
+# This function imputes the missing values with mean for numerical columns
+impute_mean <- function(x) {
+  x[is.na(x)] <- mean(x, na.rm = TRUE)
+  return(x)
+}
+```
+
+```{r impute-column}
+# Imputing the columns using the function written
+numerical_cols <- c("Weekly_Sales", "Temperature", "Fuel_Price", "CPI", "Unemployment")
+data[numerical_cols] <- lapply(data[numerical_cols], impute_mean)
+
+```
+
+### Are there any noticeable trends or seasonality in sales data?
+
+```{r sales}
+
+sales_ts <- ts(data$Weekly_Sales, frequency = 52) #Time series decomposition of weekly sales
+
+decomposed_sales <- decompose(sales_ts)
+plot(decomposed_sales)
+
+```
+
+The top plot from the chart displays the actual observed data points over time. It shows fluctuations which include all components of the time series. The second plot from the top shows the trend component, which is the smoothed version of the series capturing the general pattern or direction over time, excluding seasonal variations and random noise. The third plot displays the seasonal component, which represents patterns that repeat at regular intervals in the data. In this case, the plot shows a constant pattern repeated over each interval, suggesting a strong seasonal effect.The bottom plot shows the residuals, which are the differences between the observed data and the fitted model (sum of trend and seasonal components). This represents the randomness or unpredictability in the data that can't be explained by the model.
+
+So, there are both trends and seasonality evident in the data based on the decomposition shown in sales data.
+
+### What is the distribution of weekly sales across different stores?
+
+```{r box-plot-sales}
+# plotting weekly sales by store
+ggplot(data, aes(x = factor(Store), y = Weekly_Sales)) +
+  geom_boxplot() +
+  labs(x = "Store", y = "Weekly Sales", title = "Distribution of Weekly Sales Across Stores")
+
+```
+
+The plot provides a visual comparison of weekly sales distribution across multiple stores, highlighting differences in sales volumes and variability, which can be critical for strategic planning, performance benchmarking, and resource allocation in a retail context.
+
+### How do sales differ between holiday weeks and non-holiday weeks?
+
+```{r bar-plot}
+# generating bar plot of average weekly sales by holiday flag
+ggplot(data, aes(x = Holiday_Flag, y = Weekly_Sales, fill = Holiday_Flag)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+  labs(x = "Holiday", y = "Average Weekly Sales", title = "Average Weekly Sales: Holiday vs Non-Holiday")
+
+```
+
+The dark blue bar for holiday weeks shows significantly higher average weekly sales compared to the light blue bar for non-holiday weeks. Sales during holiday weeks are substantially higher than sales during non-holiday weeks, as indicated by the average weekly sales values shown in the graph. This is typical in retail due to increased shopping activity around holidays.
+
+### Is there any correlation between temperature, fuel price, CPI, unemployment, and weekly sales?
+
+```{r comparison}
+# finding correlation matrix
+correlation_matrix <- cor(data[, c("Weekly_Sales", "Temperature", "Fuel_Price", "CPI", "Unemployment")])
+
+# Heat map of correlation matrix
+ggplot(data = melt(correlation_matrix), aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), space = "Lab", 
+                       name="Correlation") +
+  labs(title = "Correlation Heatmap")
+
+```
+
+After visualizing the heat map we analyze that there is correlation between temperature, fuel price, CPI, unemployment, and weekly sales. As, Temperature and weekly sales show a strong positive correlation. Fuel price also positively correlates with weekly sales. CPI has a positive correlation with weekly sales, albeit weaker than temperature or fuel price. Unemployment shows a neutral to slightly positive correlation with weekly sales, which is less expected and might need further investigation to understand underlying factors.
+
+### Which are the top 10 store numbers with most sales?
+
+```{r top10-store}
+store_sales <- data %>%
+  group_by(Store) %>%
+  summarise(Total_Sales = sum(Weekly_Sales))
+
+
+top_10_stores <- store_sales %>%
+  arrange(desc(Total_Sales)) %>%
+  slice_head(n = 10)
+
+
+kable(top_10_stores, caption = "Top 10 Stores by Total Sales")
+```
+
+Store 20 leads the pack with the highest sales, followed closely by Store 4 and Store 14. These rankings are based on their reported total sales figures, highlighting the stores that are the most successful in terms of sales volume.
+
+### Clustering analysis to cluster stores based on the weekly sales.
+
+```{r clustering-analysis}
+
+sales_data <- data[, c("Store", "Weekly_Sales")] # select the colums
+
+# Aggregating weekly sales data by store
+sales_by_store <- sales_data %>%
+  group_by(Store) %>%
+  summarise(Avg_Weekly_Sales = mean(Weekly_Sales))
+
+# Normalizing the data
+scaled_sales <- scale(sales_by_store[, "Avg_Weekly_Sales"])
+
+# Elbow method to determine optimal number of clusters
+wss <- numeric(10)
+for (i in 1:10) {
+  wss[i] <- sum(kmeans(scaled_sales, centers = i)$withinss)
+}
+plot(1:10, wss, type = "b", xlab = "Number of Clusters", ylab = "Within groups sum of squares")
+
+# Based on the plot,we select the optimal number of clusters as 2
+k <- 2 
+
+# Performing K-means clustering
+set.seed(123)  # For reproducibility
+kmeans_result <- kmeans(scaled_sales, centers = k)
+
+# Adding cluster labels to the sales data
+sales_by_store$Cluster <- as.factor(kmeans_result$cluster)
+
+
+## plotting the clusters to group similar sales
+ggplot(sales_by_store, aes(x = Store, y = Avg_Weekly_Sales, color = Cluster)) +
+  geom_point() +
+  labs(x = "Store", y = "Average Weekly Sales", title = "Clustering of Stores by Weekly Sales")
+```
+
+These plots collectively help in understanding the distribution and grouping of stores based on sales performance. The elbow plot guides the number of clusters to use, and the scatter plot visually segregates the stores into two distinct groups based on their sales volume. This clustering can be instrumental for strategic decisions, such as resource allocation, marketing strategies, and performance improvement initiatives.
+
+### Regression modelling to predict weekly sales using XGBoost.
+
+```{r regression-model}
+# feature variables
+features <- c("Store", "Holiday_Flag", "Temperature", "Fuel_Price", "CPI", "Unemployment")
+
+# target variable
+target <- "Weekly_Sales"
+
+# Train and test split
+set.seed(123) 
+train_index <- createDataPartition(data$Weekly_Sales, p = 0.8, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+# Training the XGBoost model with the data
+xgb_model <- xgboost(data = as.matrix(train_data[, features]),
+                     label = train_data[[target]],
+                     nrounds = 100,
+                     objective = "reg:linear",
+                     eval_metric = "mae",
+                     verbose = 0)
+
+# predictions on testing data
+predictions <- predict(xgb_model, as.matrix(test_data[, features]))
+
+# Evaluating the model with MAE
+mae <- mean(abs(predictions - test_data[[target]]))
+cat("Mean Absolute Error (MAE):", mae, "\n")
+
+```
+
+I developed a machine learning model utilizing XGBoost to predict sales prices based on the provided features. The dataset was split into training and testing sets, with a ratio of 80% for training and 20% for testing. To assess the model's performance, we selected mean absolute error (MAE) as the evaluation metric. The model was trained on the training dataset and subsequently tested on the separate test dataset, with MAE serving as the metric for evaluation. The resulting MAE on the test data was calculated to be 68,288.6, providing us with a measure of the model's accuracy in predicting sales prices.
+
+### Conclusion
+
+In this project, the findings not only shed light on the factors affecting sales but also equip Walmart with actionable insights. By understanding the sales dynamics, Walmart can optimize operations, enhance customer satisfaction during peak sales periods, and strategically manage resources across its store network. Continuing to refine the predictive models by incorporating more granular data, such as promotional activities and more detailed customer demographics, could further improve sales forecasting accuracy. This project not only highlights the value of data-driven decision-making in retail but also sets a stage for continuous improvement and strategic growth at Walmart.
